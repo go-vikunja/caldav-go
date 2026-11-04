@@ -137,6 +137,7 @@ func (rh reportHandler) fetchResourcesByList(origin *data.Resource, requestedPat
 	reps := []reportRes{}
 
 	if origin.IsCollection() {
+		requestedPaths = uniquePaths(requestedPaths)
 		resources, err := rh.storage.GetResourcesByList(requestedPaths)
 
 		if err != nil {
@@ -152,14 +153,12 @@ func (rh reportHandler) fetchResourcesByList(origin *data.Resource, requestedPat
 			resourcesMap[resource.Path] = &r
 		}
 
-		reported := make(map[string]bool, len(requestedPaths))
 		for _, requestedPath := range requestedPaths {
 			// if the requested path does not belong to the origin collection, skip
 			// ('belonging' means that the path's prefix is the same as the collection path)
-			if !strings.HasPrefix(requestedPath, origin.Path) || reported[requestedPath] {
+			if !strings.HasPrefix(requestedPath, origin.Path) {
 				continue
 			}
-			reported[requestedPath] = true
 
 			resource, found := resourcesMap[requestedPath]
 			reps = append(reps, reportRes{requestedPath, resource, found})
@@ -169,4 +168,16 @@ func (rh reportHandler) fetchResourcesByList(origin *data.Resource, requestedPat
 	}
 
 	return reps, nil
+}
+
+func uniquePaths(paths []string) []string {
+	seen := make(map[string]bool, len(paths))
+	unique := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if !seen[p] {
+			seen[p] = true
+			unique = append(unique, p)
+		}
+	}
+	return unique
 }

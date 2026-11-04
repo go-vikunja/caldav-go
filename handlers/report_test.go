@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/samedi/caldav-go/data"
 	"github.com/samedi/caldav-go/ixml"
 	"github.com/samedi/caldav-go/test"
 )
@@ -300,4 +301,44 @@ func TestHandleEscapesRequestedHrefs(t *testing.T) {
 	}
 
 	test.AssertStr(hrefs[0], injected, t)
+}
+
+type listRecordingStorage struct {
+	data.Storage
+	listed []string
+}
+
+func (s *listRecordingStorage) GetResourcesByList(rpaths []string) ([]data.Resource, error) {
+	s.listed = append(s.listed, rpaths...)
+	return s.Storage.GetResourcesByList(rpaths)
+}
+
+func TestMultigetAsksStorageForEachHrefOnce(t *testing.T) {
+	fake := test.NewFakeStorage()
+	fake.AddFakeResource("/test-data/report/", "123-456-789.ics", "BEGIN:VEVENT\nSUMMARY:Party\nEND:VEVENT")
+	stg := &listRecordingStorage{Storage: fake}
+
+	handler := reportHandler{
+		handlerData{
+			requestPath: "/test-data/report/",
+			requestBody: `
+			<?xml version="1.0" encoding="UTF-8"?>
+			<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+				<D:prop>
+					<D:getetag/>
+				</D:prop>
+				<D:href>/test-data/report/123-456-789.ics</D:href>
+				<D:href>/test-data/report/123-456-789.ics</D:href>
+			</C:calendar-multiget>
+			`,
+			response: NewResponse(),
+			storage:  stg,
+		},
+	}
+
+	handler.Handle()
+
+	if len(stg.listed) != 1 {
+		t.Fatalf("expected storage to be asked for 1 path, got %v", stg.listed)
+	}
 }
