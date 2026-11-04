@@ -140,3 +140,28 @@ func TestTooManyRequestedProps(t *testing.T) {
 		test.AssertInt(overLimit.Status, http.StatusBadRequest, t)
 	}
 }
+
+func TestReportAnswersRepeatedHrefsOnce(t *testing.T) {
+	handler := reportHandler{
+		handlerData{
+			requestPath: "/test-data/props/",
+			requestBody: `
+			<?xml version="1.0" encoding="UTF-8"?>
+			<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+				<D:prop>
+					<C:calendar-data/>
+				</D:prop>
+				<D:href>/test-data/props/123-456-789.ics</D:href>
+				<D:href>/test-data/props/123-456-789.ics</D:href>
+				<D:href>/test-data/props/123-456-789.ics</D:href>
+			</C:calendar-multiget>
+			`,
+			response: NewResponse(),
+			storage:  propsTestStorage(),
+		},
+	}
+
+	resp := handler.Handle()
+	test.AssertInt(resp.Status, 207, t)
+	test.AssertInt(strings.Count(resp.Body, "<C:calendar-data>"), 1, t)
+}
