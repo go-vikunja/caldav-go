@@ -27,6 +27,11 @@ func (rh reportHandler) Handle() *Response {
 	var requestXML reportRootXML
 	xml.Unmarshal([]byte(rh.requestBody), &requestXML)
 
+	props, ok := uniqueProps(requestXML.Prop.Tags)
+	if !ok {
+		return rh.response.Set(http.StatusBadRequest, "")
+	}
+
 	// The resources to be reported are fetched by the type of the request. If it is
 	// a `calendar-multiget`, the resources come based on a set of `hrefs` in the request body.
 	// If it is a `calendar-query`, the resources are calculated based on set of filters in the request.
@@ -51,7 +56,7 @@ func (rh reportHandler) Handle() *Response {
 	}
 	// for each href, build the multistatus responses
 	for _, r := range resourcesToReport {
-		propstats := multistatus.Propstats(r.resource, requestXML.Prop.Tags)
+		propstats := multistatus.Propstats(r.resource, props)
 		multistatus.AddResponse(r.href, r.found, propstats)
 	}
 

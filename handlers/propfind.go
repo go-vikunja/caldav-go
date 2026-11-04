@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/xml"
+	"net/http"
 )
 
 type propfindHandler struct {
@@ -9,12 +10,6 @@ type propfindHandler struct {
 }
 
 func (ph propfindHandler) Handle() *Response {
-	// get the target resources based on the request URL
-	resources, err := ph.storage.GetResources(ph.requestPath, ph.headers.IsDeep())
-	if err != nil {
-		return ph.response.SetError(err)
-	}
-
 	// read body string to xml struct
 	type XMLProp2 struct {
 		Tags []xml.Name `xml:",any"`
@@ -26,6 +21,17 @@ func (ph propfindHandler) Handle() *Response {
 	var requestXML XMLRoot2
 	xml.Unmarshal([]byte(ph.requestBody), &requestXML)
 
+	props, ok := uniqueProps(requestXML.Prop.Tags)
+	if !ok {
+		return ph.response.Set(http.StatusBadRequest, "")
+	}
+
+	// get the target resources based on the request URL
+	resources, err := ph.storage.GetResources(ph.requestPath, ph.headers.IsDeep())
+	if err != nil {
+		return ph.response.SetError(err)
+	}
+
 	multistatus := &multistatusResp{
 		Minimal:             ph.headers.IsMinimal(),
 		user:                ph.user,
@@ -33,7 +39,7 @@ func (ph propfindHandler) Handle() *Response {
 	}
 	// for each href, build the multistatus responses
 	for _, resource := range resources {
-		propstats := multistatus.Propstats(&resource, requestXML.Prop.Tags)
+		propstats := multistatus.Propstats(&resource, props)
 		multistatus.AddResponse(resource.Path, true, propstats)
 	}
 
