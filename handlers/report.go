@@ -152,12 +152,14 @@ func (rh reportHandler) fetchResourcesByList(origin *data.Resource, requestedPat
 			resourcesMap[resource.Path] = &r
 		}
 
+		reported := make(map[string]bool, len(requestedPaths))
 		for _, requestedPath := range requestedPaths {
 			// if the requested path does not belong to the origin collection, skip
 			// ('belonging' means that the path's prefix is the same as the collection path)
-			if !strings.HasPrefix(requestedPath, origin.Path) {
+			if !strings.HasPrefix(requestedPath, origin.Path) || reported[requestedPath] {
 				continue
 			}
+			reported[requestedPath] = true
 
 			resource, found := resourcesMap[requestedPath]
 			reps = append(reps, reportRes{requestedPath, resource, found})
