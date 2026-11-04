@@ -5,9 +5,7 @@ import "encoding/xml"
 // MaxRequestedProps caps how many distinct properties a single PROPFIND or REPORT may request.
 const MaxRequestedProps = 200
 
-// Every requested prop is answered for every resource, so a repeated one would be
-// rendered and sent again. ok is false when more than MaxRequestedProps distinct
-// props are requested.
+// uniqueProps drops repeated props; ok is false when more than MaxRequestedProps distinct ones are requested.
 func uniqueProps(props []xml.Name) (unique []xml.Name, ok bool) {
 	seen := make(map[xml.Name]bool, len(props))
 	unique = make([]xml.Name, 0, len(props))
